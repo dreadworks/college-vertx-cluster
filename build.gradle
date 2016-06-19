@@ -45,4 +45,5 @@ jar {
 dependencies {
     compile group: 'io.vertx', name: 'vertx-core', version: vertxVersion
     compile group: 'io.vertx', name: 'vertx-web',  version: vertxVersion
+    compile group: 'io.vertx', name: 'vertx-hazelcast', version: vertxVersion
 }

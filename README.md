@@ -85,3 +85,8 @@ dpkg-reconfigure locales
 
 Then simply create containers etc. with the proxmox gui or `pct`.
 
+
+### Vertx
+
+Add `compile group: 'io.vertx', name: 'vertx-hazelcast', version: vertxVersion` to `build.gradle`.
+
