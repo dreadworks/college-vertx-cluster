@@ -11,8 +11,7 @@ import io.vertx.core.logging.LoggerFactory;
 public class Server {
 	private final Logger log = LoggerFactory.getLogger(Server.class);
 	
-	private Vertx vertx;
-	private int port;
+	private int port = -1;
 	
 	
 	private void parseArgs (String ...args) {
@@ -32,6 +31,10 @@ public class Server {
 			
 			}
 		}
+		
+		if (this.port == -1) {
+			throw new RuntimeException("no port set");
+		}
 	}
 	
 	
@@ -41,13 +44,23 @@ public class Server {
 		opts.setClustered(true);
 		
 		
-		Vertx.clusteredVertx(opts, res -> {
-			if (res.failed()) {
-				final String fmt = "creating vertx failed: '%s'"; 
-				throw new RuntimeException(String.format(fmt, res.cause()));
+		Vertx.clusteredVertx(opts, vertxRes -> {
+			if (vertxRes.failed()) {
+				throw new RuntimeException(vertxRes.cause());
 			}
 			
 			log.info("created clustered vertx instance");
+			final Vertx vertx = vertxRes.result();
+			vertx.deployVerticle(new Verticle(this.port), deploymentRes -> {
+				
+				if (deploymentRes.failed()) {
+					throw new RuntimeException(deploymentRes.cause());
+				}
+				
+				final String id = deploymentRes.result(); 
+				log.info(String.format("successfully deployed '%s'", id));
+				
+			});
 		});
 	}
 	
