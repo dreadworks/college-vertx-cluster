@@ -1,13 +1,26 @@
 package de.hsrm.mi.hamann.cluster;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+
 public class Statistics {
 
-	Long local;
-	Long bus;
-	Long cluster;
-	Long counter;
+	private String hostname;
+	
+	// metrics
+	
+	private Long local;
+	private Long bus;
+	private Long cluster;
+	private Long counter;
 
 	public Statistics () {
+		try {
+			this.hostname = InetAddress.getLocalHost().getHostName();
+		} catch (UnknownHostException exc) {
+			this.hostname = "unknown";
+		}
+		
 		this.local   = 0L;
 		this.bus     = 0L;
 		this.cluster = 0L;
@@ -17,6 +30,15 @@ public class Statistics {
 	
 	// auto-generated
 	
+	public String getHostname() {
+		return hostname;
+	}
+
+
+	public void setHostname(String hostname) {
+		this.hostname = hostname;
+	}
+
 	public Long getLocal() {
 		return local;
 	}

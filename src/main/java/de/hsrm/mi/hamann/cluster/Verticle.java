@@ -6,6 +6,7 @@ import io.vertx.core.AbstractVerticle;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
+import io.vertx.core.eventbus.DeliveryOptions;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.http.HttpHeaders;
@@ -26,10 +27,11 @@ import io.vertx.core.shareddata.SharedData;
 public class Verticle extends AbstractVerticle {
 	final private Logger log = LoggerFactory.getLogger(Verticle.class);
 	
-	final private static String LOCALMAP  = "localmap";
-	final private static String KEY_LOCAL = "local";
-	final private static String KEY_BUS   = "bus";
-	final private static String BUS_KEY   = "counter"; 
+	final private static String LOCALMAP   = "localmap";
+	final private static String KEY_LOCAL  = "local";
+	final private static String KEY_BUS    = "bus";
+	final private static String BUS_KEY    = "counter";
+	final private static String BUS_HEADER = "emitter";
 	
 	private SharedData sd;
 	private EventBus bus;
@@ -123,7 +125,7 @@ public class Verticle extends AbstractVerticle {
 	/**
 	 * Retrieve and return the current value of the cluster wide map
 	 * 
-	 * There is a race condition!
+	 * There contains a race condition!
 	 * 
 	 * @param req
 	 * @param handler
@@ -161,6 +163,38 @@ public class Verticle extends AbstractVerticle {
 	
 	
 	/**
+	 * Publish a counting message on the event bus
+	 */
+	private void publish () {
+		DeliveryOptions opts = new DeliveryOptions();
+		opts.addHeader(BUS_HEADER, this.toString());
+		this.bus.publish(BUS_KEY, "", opts);
+	}
+	
+	
+	/**
+	 * Register a handler for messages from the event bus discarding own messages
+	 */
+	private void subscribe () {
+		this.sd.getLocalMap(LOCALMAP).put(KEY_BUS, 0L);
+		MessageConsumer<String> consumer = this.bus.consumer(BUS_KEY);
+		consumer.handler(msg -> {
+		
+			// urgh, is there a better way?
+			if (msg.headers().get(BUS_HEADER).equals(this.toString())) {
+				return;
+			}
+			
+			LocalMap<String, Long> local = this.sd.getLocalMap(LOCALMAP);
+			Long count = local.get(KEY_BUS);
+			if (count == null) { count = 0L; };
+			local.put(KEY_BUS, count + 1L);
+			
+		});
+	}
+	
+	
+	/**
 	 * Handle all http stuff
 	 * 
 	 * @param req
@@ -175,7 +209,7 @@ public class Verticle extends AbstractVerticle {
 			this.getCounter(req, counter -> {
 				this.stats.setCounter(counter);
 				
-				this.bus.publish(BUS_KEY, "");
+				this.publish();
 				String msg = Json.encodePrettily(this.stats);
 				this.write(req, 200, msg);
 				
@@ -190,17 +224,7 @@ public class Verticle extends AbstractVerticle {
 		
 		
 		// handle event bus messages
-		
-		this.sd.getLocalMap(LOCALMAP).put(KEY_BUS, 0L);
-		MessageConsumer<String> consumer = this.bus.consumer(BUS_KEY);
-		consumer.handler(msg -> {
-			
-			LocalMap<String, Long> local = this.sd.getLocalMap(LOCALMAP);
-			Long count = local.get(KEY_BUS);
-			if (count == null) { count = 0L; };
-			local.put(KEY_BUS, count + 1L);
-			
-		});
+		this.subscribe();
 		
 		// create http server
 		
