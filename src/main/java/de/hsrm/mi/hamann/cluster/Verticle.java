@@ -132,8 +132,6 @@ public class Verticle extends AbstractVerticle {
 		final String name = "clustercounter";
 		final String key = "counter";
 		
-		// take cover - heavy elbow incoming!
-		
 		this.sd.<String, Long>getClusterWideMap(name, this.proxy(req, cluster -> {
 			cluster.get(key, this.proxy(req, count -> {
 				
