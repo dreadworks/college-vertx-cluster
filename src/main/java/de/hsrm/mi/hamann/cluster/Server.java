@@ -12,6 +12,7 @@ public class Server {
 	private final Logger log = LoggerFactory.getLogger(Server.class);
 	
 	private int port = -1;
+	private int cport = 15781;
 	
 	
 	private void parseArgs (String ...args) {
@@ -29,6 +30,10 @@ public class Server {
 				this.port = Integer.valueOf(it.next());
 				break;
 			
+			case "-c":
+			case "--cluster-port":
+				this.cport = Integer.valueOf(it.next());
+				break;
 			}
 		}
 		
@@ -40,9 +45,7 @@ public class Server {
 	
 	public void start () {
 		VertxOptions opts = new VertxOptions();
-		
-		opts.setClustered(true);
-		
+		opts.setClusterPort(this.cport);
 		
 		Vertx.clusteredVertx(opts, vertxRes -> {
 			if (vertxRes.failed()) {
