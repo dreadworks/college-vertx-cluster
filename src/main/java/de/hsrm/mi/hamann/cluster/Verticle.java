@@ -6,13 +6,14 @@ import io.vertx.core.AbstractVerticle;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
+import io.vertx.core.eventbus.EventBus;
+import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
-import io.vertx.core.shareddata.AsyncMap;
 import io.vertx.core.shareddata.LocalMap;
 import io.vertx.core.shareddata.SharedData;
 
@@ -25,7 +26,13 @@ import io.vertx.core.shareddata.SharedData;
 public class Verticle extends AbstractVerticle {
 	final private Logger log = LoggerFactory.getLogger(Verticle.class);
 	
+	final private static String LOCALMAP  = "localmap";
+	final private static String KEY_LOCAL = "local";
+	final private static String KEY_BUS   = "bus";
+	final private static String BUS_KEY   = "counter"; 
+	
 	private SharedData sd;
+	private EventBus bus;
 	
 	final private Statistics stats = new Statistics();
 	final int port;
@@ -69,18 +76,15 @@ public class Verticle extends AbstractVerticle {
 	 * 
 	 * @return
 	 */
-	private Long getLocalCounter () {
-		final String name = "localcounter";
-		final String key = "counter";
-		
-		LocalMap<String, Long> local = this.sd.getLocalMap(name);
+	private Long getLocalCounter (String key) {
+		LocalMap<String, Long> local = this.sd.getLocalMap(LOCALMAP);
 		
 		if (local == null) {
 			throw new RuntimeException("could not retrieve the local map");
 		}
 		
 		if (!local.keySet().contains(key)) {
-			local.put(key, (long) 0);
+			local.put(key, 0L);
 		}
 		
 		// no local race?
@@ -135,12 +139,13 @@ public class Verticle extends AbstractVerticle {
 	
 	
 	/**
-	 * Handle everything (!)
+	 * Handle all http stuff
 	 * 
 	 * @param req
 	 */
 	private void handle (HttpServerRequest req) {
-		this.stats.setLocal(this.getLocalCounter());
+		this.stats.setLocal(this.getLocalCounter(KEY_LOCAL));
+		this.stats.setBus(this.sd.<String, Long>getLocalMap(LOCALMAP).get(KEY_BUS));
 		
 		this.getClusterCounter(req, clusterCounter -> {
 			this.stats.setCluster(clusterCounter);
@@ -148,6 +153,7 @@ public class Verticle extends AbstractVerticle {
 			this.getCounter(req, counter -> {
 				this.stats.setCounter(counter);
 				
+				this.bus.publish(BUS_KEY, "");
 				String msg = Json.encodePrettily(this.stats).toString();
 				this.write(req, 200, msg);
 				
@@ -158,6 +164,23 @@ public class Verticle extends AbstractVerticle {
 	
 	@Override public void start (Future<Void> fut) {
 		this.sd = this.vertx.sharedData();
+		this.bus = this.vertx.eventBus();
+		
+		
+		// handle event bus messages
+		
+		this.sd.getLocalMap(LOCALMAP).put(KEY_BUS, 0L);
+		MessageConsumer<String> consumer = this.bus.consumer(BUS_KEY);
+		consumer.handler(msg -> {
+			
+			LocalMap<String, Long> local = this.sd.getLocalMap(LOCALMAP);
+			Long count = local.get(KEY_BUS);
+			if (count == null) { count = 0L; };
+			local.put(KEY_BUS, count + 1L);
+			
+		});
+		
+		// create http server
 		
 		this.vertx.createHttpServer()
 			.requestHandler(this::handle)
@@ -166,7 +189,6 @@ public class Verticle extends AbstractVerticle {
 				if (res.failed()) {
 					fut.fail(res.cause());
 				}
-				
 				
 				final String fmt = "deployed verticle, listening on :'%d'";
 				this.log.info(String.format(fmt, this.port));
