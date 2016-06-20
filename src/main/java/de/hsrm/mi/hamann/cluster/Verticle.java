@@ -44,9 +44,26 @@ public class Verticle extends AbstractVerticle {
 	
 	// UTILITY
 	
+	/**
+	 * Send a json encoded response to the client
+	 * 
+	 * @param req
+	 * @param code
+	 * @param json
+	 */
+	private void write (HttpServerRequest req, int code, JsonObject json) {
+		this.write(req, code, json.toString());
+	}
+
+	/**
+	 * Send a json encoded response to the client
+	 * 
+	 * @param req
+	 * @param code
+	 * @param msg
+	 */
 	private void write (HttpServerRequest req, int code, String msg) {
 		final String clen = Integer.toString(msg.getBytes().length);
-		
 		req.response()
 			.setStatusCode(code)
 			.putHeader(HttpHeaders.CONTENT_LENGTH, clen)
@@ -56,12 +73,19 @@ public class Verticle extends AbstractVerticle {
 	}
 	
 	
+	/**
+	 * Handle asynchronous failure generically
+	 * 
+	 * @param req
+	 * @param handler
+	 * @return
+	 */
 	private <T> Handler<AsyncResult<T>> proxy (HttpServerRequest req, Consumer<T> handler) {
 		return res -> {
 			if (res.failed()) {
 				JsonObject msg = new JsonObject();
 				msg.put("error", res.cause().getMessage());
-				this.write(req, 500, msg.toString());
+				this.write(req, 500, msg);
 			}
 			
 			handler.accept(res.result());
@@ -154,7 +178,7 @@ public class Verticle extends AbstractVerticle {
 				this.stats.setCounter(counter);
 				
 				this.bus.publish(BUS_KEY, "");
-				String msg = Json.encodePrettily(this.stats).toString();
+				String msg = Json.encodePrettily(this.stats);
 				this.write(req, 200, msg);
 				
 			});
