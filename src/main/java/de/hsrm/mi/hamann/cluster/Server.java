@@ -13,6 +13,7 @@ public class Server {
 	
 	private int port = -1;
 	private int cport = 15781;
+	private String chost;
 	
 	
 	private void parseArgs (String ...args) {
@@ -34,6 +35,11 @@ public class Server {
 			case "--cluster-port":
 				this.cport = Integer.valueOf(it.next());
 				break;
+				
+			case "-h":
+			case "--cluster-host":
+				this.chost = it.next();
+				break;
 			}
 		}
 		
@@ -45,7 +51,11 @@ public class Server {
 	
 	public void start () {
 		VertxOptions opts = new VertxOptions();
+		
 		opts.setClusterPort(this.cport);
+		if (this.chost != null) {
+			opts.setClusterHost(this.chost);
+		}
 		
 		Vertx.clusteredVertx(opts, vertxRes -> {
 			if (vertxRes.failed()) {
