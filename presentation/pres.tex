@@ -126,7 +126,39 @@
   \vspace{.3cm}
 
   \lstinputlisting[language=Java,basicstyle=\scriptsize]{src/asyncmap.java}
+\end{frame}
 
+
+\begin{frame}
+  \frametitle{Lock und Counter}
+  \vspace{1cm}
+
+  \lstinputlisting[language=Java,basicstyle=\scriptsize]{src/lock_counter.java}
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{Demo}
+  \vspace{1cm}
+
+  \includegraphics[height=6cm]{src/demo.pdf}
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{Fazit}
+
+  \begin{itemize}
+    \item Ob Clustering nötig ist, ist abhängig von der individuellen Architektur (SOA vielleicht, Microservices nein)
+
+    \item Notwendig für Hochverfügbarkeit (wenn man das denn braucht)
+
+    \item Einfaches Mittel zum ad-hoc skalieren, aber der Preis ist die Komplexität eines verteilten Systems
+
+    \item Bei I/O lastigen Systemen ist Vert.x wohl selten der Flaschenhals
+
+    \item Allgemein: Je weniger State im Service, umso weniger Kopfschmerz
+  \end{itemize}
 \end{frame}
 
 
